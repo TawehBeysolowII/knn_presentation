@@ -43,15 +43,12 @@ def model_iris_data(n_neighbors):
     
     
 def model_stock_data(n_neighbors, ticker_symbol, start_date, end_date, data_source='yahoo'):
-   '''
+    '''
     This function loads the stock data from yahoo finance, models this data set using KNN, 
     and then displays performance data on the algorithm (Regression). Time series is sampled daily
-    
-    The final outputs will display both the actual and predicted 
-    time series as well as descriptive statistics on the differences between time series
-    
+
     Arguments:
-    
+
         n_neighbors - int - the number of neighbors to an observation KNN uses to output a discrete or continuous label
         ticker_symbol - str - the SPY ticker of the stock that is being modeled 
         start_date - str - initial sampling date of the time series (Format - YYYY-MM-DD)
@@ -60,39 +57,45 @@ def model_stock_data(n_neighbors, ticker_symbol, start_date, end_date, data_sour
         
     '''
      
-   stock_data = data.DataReader(name=ticker_symbol, 
-                                start=start_date, 
-                                end=end_date,
-                                data_source=data_source)
-
-
-   x = stock_data.shift(1).dropna().reset_index(drop='index')
-   y = stock_data.Close.shift(-1).dropna().reset_index(drop='index')
-   train_X, test_X, train_y, test_y = train_test_split(x, y, test_size=0.20)
-   test_y = test_y.reset_index(drop='index')
-   
-   knn_model = KNeighborsRegressor(n_neighbors=n_neighbors).fit(train_X, train_y)
-   predicted_labels = knn_model.predict(test_X)
-   prediction_difference = pan.DataFrame([test_y[i] - predicted_labels[i] for i in range(0, len(predicted_labels))])
-
-   plt.plot(predicted_labels, label='predicted price')
-   plt.plot(test_y, label='actual price')
-   plt.title('Predicted vs Actual Stock Price')
-   plt.xlabel('N Days')
-   plt.ylabel('Price')
-   plt.legend(loc='upper right')
-   plt.show()
-   
-   sns.distplot(prediction_difference, bins=10).set_title('Predicted Minus Actual Stock Price Distribution')
-   plt.show()
-   
-   print('\nSummary Statistics on Prediction Difference: %s'%prediction_difference.describe())
-   print('KNN Mean Squared Error: %s'%mean_squared_error(test_y, predicted_labels))
-
-def explore_iris_data():
+    stock_data = data.DataReader(name=ticker_symbol, 
+                                 start=start_date, 
+                                 end=end_date,
+                                 data_source=data_source)
+    
+    x = stock_data.shift(1).dropna().reset_index(drop='index')
+    y = stock_data.Close.shift(-1).dropna().reset_index(drop='index')
+    _mean_squared_error = []
+    
+    for i in range(1000):
+        train_X, test_X, train_y, test_y = train_test_split(x, y, test_size=0.20)
+        test_y = test_y.reset_index(drop='index')
+        knn_model = KNeighborsRegressor(n_neighbors=n_neighbors).fit(train_X, train_y)
+        predicted_labels = knn_model.predict(test_X)
+        _mean_squared_error.append(mean_squared_error(test_y, predicted_labels))
+        
+    prediction_difference = pan.DataFrame([test_y[i] - predicted_labels[i] for i in range(0, len(predicted_labels))])
+    price_percentage_changes = [test_y[i]/float(test_y[i-1]) - 1 for i in range(1, len(test_y))]
+    
+    plt.plot(predicted_labels, label='predicted price')
+    plt.plot(test_y, label='actual price')
+    plt.title('Predicted vs Actual Price')
+    plt.xlabel('N Days')
+    plt.ylabel('Price')
+    plt.legend(loc='upper right')
+    plt.show()
+        
+    print('\nSummary Statistics on Average Mean Squared Error: %s'%pan.DataFrame(_mean_squared_error).describe())  
+    print('\nSummary Statistics on AAPL Close Price:\n %s'%pan.DataFrame(test_y).describe())
+    print('\nSummary Statistics on AAPL Close Price Percentage Changes:\n %s'%pan.DataFrame(price_percentage_changes).describe())
+    print('\nSummary Statistics on Prediction Difference: %s'%prediction_difference.describe())
+    sns.distplot(prediction_difference, bins=10).set_title('Predicted Minus Actual Stock Price Distribution')
+    plt.show()
+    
+def visualize_iris_data():
     '''
-    Post-hoc analysis of why the KNN algorithm works well 
-    on the iris data and not the time series data 
+    Visualize iris data    
+    
+    :return: None
     '''
     raw_iris_data = datasets.load_iris()
     iris_data = pan.DataFrame(raw_iris_data.data[:, :4], columns=raw_iris_data.feature_names)
@@ -108,26 +111,17 @@ def explore_iris_data():
         plt.ylabel(X.columns[1])
         plt.show()
         
-        
-def explore_stock_data(ticker_symbol, start_date, end_date, data_source='yahoo'):
+def visualize_stock_data(ticker_symbol, start_date, end_date, data_source='yahoo'):
     '''
-    Post-hoc analysis of why the KNN algorithm works well 
-    on the iris data and not the time series data 
+    Visualize closing price of stock data    
+    
+    :return None
     '''
     stock_data = data.DataReader(name=ticker_symbol,
                                  start=start_date,
                                  end=end_date,
                                  data_source='yahoo')
-    
-    shifted_correlations = np.zeros((1, stock_data.shape[1]))
-    
-    for i in range(stock_data.shape[1]):
-        shifted_correlations[0, i] = np.corrcoef(stock_data.ix[:, i].shift(1).dropna(), 
-                                                 stock_data.Close.shift(-1).dropna())[0, 1]
-    
-    shifted_correlations = pan.DataFrame(shifted_correlations, columns=stock_data.columns)
-    print('Correlation Coefficients of Shifted Columns to Shifted Close: %s'%shifted_correlations)
-    
+        
     plt.plot(stock_data.Close)
     plt.title('Closing Price Time Series')
     plt.xlabel('Date')
@@ -136,9 +130,9 @@ def explore_stock_data(ticker_symbol, start_date, end_date, data_source='yahoo')
     
 if __name__ == '__main__':
     
-    explore_iris_data()
+    visualize_iris_data()
     
-    explore_stock_data(ticker_symbol='AAPL', 
+    visualize_stock_data(ticker_symbol='AAPL', 
                        start_date='2017-01-01', 
                        end_date='2019-01-01')
     
